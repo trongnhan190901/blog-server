@@ -9,6 +9,8 @@ passport.use(
                 '158973631788-kj3jm25t9s244vis5l2ergo8qmkjco5v.apps.googleusercontent.com',
             clientSecret: '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',
             callbackURL: 'http://localhost:5000/auth/google/callback',
+            authorizationURL:
+                'https://accounts.google.com/o/oauth2/v2/auth?prompt=consent&access_type=offline&response_type=code',
         },
         async (accessToken, refreshToken, profile, done) => {
             try {

@@ -8,6 +8,8 @@ const cookieParser = require('cookie-parser');
 const authRoutes = require('./routes/authRoutes');
 const userRoutes = require('./routes/userRoutes');
 const blogRoutes = require('./routes/blogRoutes');
+const categoryRoutes = require('./routes/categoryRoutes');
+const sessionStore = require('./auth/session.config');
 require('./auth/passport'); // Import file passport.js đã tạo
 
 const app = express();
@@ -30,8 +32,9 @@ app.use(
         saveUninitialized: true,
         cookie: {
             maxAge: 7 * 24 * 60 * 60 * 1000,
-            persistent: true,
+            secure: false, // Chỉ đặt là true khi sử dụng HTTPS
         },
+        store: sessionStore,
     }),
 );
 
@@ -41,6 +44,7 @@ app.use(passport.session());
 app.use('/auth', authRoutes);
 app.use('/api/user', userRoutes);
 app.use('/api/blog', blogRoutes);
+app.use('/api/category', categoryRoutes);
 
 app.listen(port, () => {
     console.log(`Server is running on port ${port}`);
