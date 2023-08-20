@@ -9,8 +9,6 @@ router.post('/fetch-image', blogController.fetchImage);
 
 router.post('/submit', blogController.createBlog);
 
-router.post('/draft', blogController.draftBlog);
-
 router.post('/like/:slug', authenticateSession, blogController.likeBlog);
 
 router.post('/save/:slug', authenticateSession, blogController.saveBlog);

@@ -1,5 +1,6 @@
 const User = require('../models/User');
 const Blog = require('../models/Blog');
+const Draft = require('../models/Draft');
 
 exports.getUserByGoogleId = async (req, res) => {
     try {
@@ -15,13 +16,17 @@ exports.getUserByGoogleId = async (req, res) => {
             createdAt: -1,
         });
 
+        const drafts = await Draft.find({ author: userId }).sort({
+            createdAt: -1,
+        });
+
         const savedBlogs = await Blog.find({
             'saves.user': userId,
         }).sort({
             'saves.savedAt': -1,
         });
 
-        res.json({ user, blogs, savedBlogs });
+        res.json({ user, blogs, savedBlogs, drafts });
     } catch (error) {
         res.status(500).json({ message: 'Error fetching user and blogs' });
     }

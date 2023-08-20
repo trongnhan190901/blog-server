@@ -4,7 +4,7 @@ const blogSchema = new mongoose.Schema({
     title: { type: String, required: true },
     desc: { type: String },
     slug: { type: String, required: true },
-    content: { type: Array, required: true },
+    content: { type: Object, required: true },
     author: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     category: { type: String, required: true },
     approved: { type: Boolean, default: false },

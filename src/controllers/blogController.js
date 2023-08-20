@@ -1,5 +1,4 @@
 const Blog = require('../models/Blog');
-const Draft = require('../models/Draft');
 const { saveImageToS3, upload } = require('../middleware/uploadData');
 const axios = require('axios');
 const { JSDOM } = require('jsdom');
@@ -48,26 +47,6 @@ exports.createBlog = async (req, res) => {
     } catch (error) {
         console.error('Error creating blog:', error);
         return res.status(500).json({ message: 'Error creating blog post' }); // Thêm 'return' ở đây
-    }
-};
-
-exports.draftBlog = async (req, res) => {
-    try {
-        const { title, desc, content, author } = req.body;
-        const slug = await createUniqueSlug(title);
-
-        const newDraftBlog = new Draft({
-            title,
-            desc,
-            content,
-            author,
-            slug,
-        });
-
-        await newDraftBlog.save();
-        res.status(201).json(newDraftBlog);
-    } catch (error) {
-        res.status(500).json({ message: 'Error drafting blog post' });
     }
 };
 
@@ -158,10 +137,7 @@ exports.getBlogBySlug = async (req, res) => {
         const slug = req.params.slug;
         const userId = req.session.user ? req.session.user.id : null;
 
-        const blog = await Blog.findOne({ slug }).populate(
-            'author',
-            'title desc content createdAt approved category views likes comments',
-        );
+        const blog = await Blog.findOne({ slug });
 
         if (!blog) {
             return res.status(404).json({ message: 'Blog post not found' });
@@ -171,7 +147,6 @@ exports.getBlogBySlug = async (req, res) => {
         await blog.save();
 
         const author = await User.findById(blog.author._id, 'name avatar');
-        const content = blog.content[0];
 
         const hasLiked = userId && blog.likes.includes(userId);
         const hasSaved = userId && blog.saves.user.includes(userId);
@@ -179,7 +154,7 @@ exports.getBlogBySlug = async (req, res) => {
         res.json({
             title: blog.title,
             desc: blog.desc,
-            content: content,
+            content: blog.content,
             createdAt: blog.createdAt,
             approved: blog.approved,
             category: blog.category,
