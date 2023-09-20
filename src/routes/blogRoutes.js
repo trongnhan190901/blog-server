@@ -3,6 +3,16 @@ const router = express.Router();
 const blogController = require('../controllers/blogController');
 const authenticateSession = require('../middleware/authenticateSession');
 
+router.get('/:slug', blogController.getBlogBySlug);
+
+// router.get('/:slug/comments', blogController.fetchComments);
+
+router.get('/fetchUrl', blogController.fetchLinkData);
+
+router.get('/', blogController.getAllBlogs);
+
+router.post('/search', blogController.searchBlogs);
+
 router.post('/upload-image', blogController.uploadImage);
 
 router.post('/fetch-image', blogController.fetchImage);
@@ -13,14 +23,16 @@ router.post('/like/:slug', authenticateSession, blogController.likeBlog);
 
 router.post('/save/:slug', authenticateSession, blogController.saveBlog);
 
-router.put('/:slug', blogController.updateBlog);
+// router.post(
+//     '/:slug/comment',
+//     authenticateSession,
+//     blogController.createComment,
+// );
 
-router.delete('/:slug', blogController.deleteBlog);
+// router.post('/reply', authenticateSession, blogController.createReply);
 
-router.get('/fetchUrl', blogController.fetchLinkData);
+router.put('/:slug/update', blogController.updateBlog);
 
-router.get('/:slug', blogController.getBlogBySlug);
-
-router.get('/', blogController.getAllBlogs);
+router.delete('/:slug/delete', blogController.deleteBlog);
 
 module.exports = router;

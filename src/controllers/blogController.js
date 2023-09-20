@@ -1,36 +1,16 @@
-const Blog = require('../models/Blog');
 const { saveImageToS3, upload } = require('../middleware/uploadData');
 const axios = require('axios');
 const { JSDOM } = require('jsdom');
 const User = require('../models/User');
-const slugify = require('slugify');
-const unidecode = require('unidecode');
-
-const createUniqueSlug = async (title) => {
-    const baseSlug = slugify(unidecode(title), {
-        lower: true,
-        strict: true,
-    });
-
-    let slug = baseSlug;
-    let count = 1;
-
-    while (true) {
-        const existingBlog = await Blog.findOne({ slug });
-        if (!existingBlog) {
-            break;
-        }
-        slug = `${baseSlug}-${count}`;
-        count++;
-    }
-
-    return slug;
-};
+const Blog = require('../models/Blog');
+const Comment = require('../models/Comment');
+const shortid = require('shortid');
+const { mergeComments } = require('../helpers/blogHelper');
 
 exports.createBlog = async (req, res) => {
     try {
         const { title, desc, content, category, author } = req.body;
-        const slug = await createUniqueSlug(title);
+        const slug = shortid.generate(title);
 
         const newBlog = new Blog({
             title,
@@ -43,10 +23,10 @@ exports.createBlog = async (req, res) => {
 
         await newBlog.save();
 
-        return res.status(201).json({ slug }); // Thêm 'return' ở đây
+        return res.status(201).json({ slug });
     } catch (error) {
         console.error('Error creating blog:', error);
-        return res.status(500).json({ message: 'Error creating blog post' }); // Thêm 'return' ở đây
+        return res.status(500).json({ message: 'Error creating blog post' });
     }
 };
 
@@ -134,7 +114,7 @@ exports.getAllBlogs = async (req, res) => {
 
 exports.getBlogBySlug = async (req, res) => {
     try {
-        const slug = req.params.slug;
+        const { slug } = req.params;
         const userId = req.session.user ? req.session.user.id : null;
 
         const blog = await Blog.findOne({ slug });
@@ -152,16 +132,8 @@ exports.getBlogBySlug = async (req, res) => {
         const hasSaved = userId && blog.saves.user.includes(userId);
 
         res.json({
-            title: blog.title,
-            desc: blog.desc,
-            content: blog.content,
-            createdAt: blog.createdAt,
-            approved: blog.approved,
-            category: blog.category,
-            author: author,
-            likes: blog.likes,
-            views: blog.views,
-            comments: blog.comments,
+            ...blog.toObject(),
+            author,
             userHasLiked: hasLiked,
             userHasSaved: hasSaved,
         });
@@ -317,3 +289,148 @@ exports.fetchLinkData = async (req, res) => {
         res.status(500).json({ message: 'Error fetching link data' });
     }
 };
+
+exports.searchBlogs = async (req, res) => {
+    try {
+        const { search } = req.body;
+
+        const blogs = await Blog.find({
+            title: { $regex: search, $options: 'i' },
+        })
+            .populate({
+                path: 'author',
+                select: 'name avatar',
+            })
+            .sort({ createdAt: -1 });
+
+        const users = await User.find({
+            name: { $regex: search, $options: 'i' },
+        });
+
+        const userIsLoggedIn = !!req.session.user;
+
+        const updatedBlogs = blogs.map((blog) => {
+            const hasLiked =
+                userIsLoggedIn && blog.likes.includes(req.session.user.id);
+            const hasSaved =
+                userIsLoggedIn &&
+                blog.saves.some((save) =>
+                    save.user.equals(req.session.user.id),
+                );
+
+            return {
+                ...blog.toObject(),
+                userHasLiked: hasLiked,
+                userHasSaved: hasSaved,
+            };
+        });
+
+        res.json({
+            blogs: updatedBlogs,
+            users: users,
+        });
+    } catch (error) {
+        res.status(500).json({ message: 'Error searching blogs' });
+    }
+};
+
+// exports.createComment = async (req, res) => {
+//     try {
+//         const { content, author } = req.body;
+
+//         const newComment = new Comment({
+//             content,
+//             author,
+//             type: 'comment',
+//         });
+
+//         await newComment.save();
+
+//         res.status(201).json(newComment);
+//     } catch (error) {
+//         console.error('Error creating comment:', error);
+//         res.status(500).json({ error: 'Something went wrong.' });
+//     }
+// };
+
+// exports.createReply = async (req, res) => {
+//     try {
+//         const { content, parent } = req.body;
+//         const author = req.session.user.id;
+
+//         const parentComment = await Comment.findById(parent);
+
+//         if (!parentComment) {
+//             return res
+//                 .status(404)
+//                 .json({ message: 'Parent comment not found' });
+//         }
+
+//         const level = parentComment.level + 1;
+
+//         const newReply = new Comment({
+//             content,
+//             author,
+//             parent: parentComment._id,
+//             level,
+//             type: 'reply',
+//         });
+
+//         await newReply.save();
+
+//         parentComment.replies.push(newReply._id);
+
+//         await parentComment.save();
+
+//         res.status(201).json(newReply);
+//     } catch (error) {
+//         console.error('Error creating reply:', error);
+//         res.status(500).json({ error: 'Something went wrong.' });
+//     }
+// };
+
+// exports.fetchComments = async (req, res) => {
+//     try {
+//         const { slug } = req.params;
+
+//         const blog = await Blog.findOne({ slug });
+
+//         if (!blog) {
+//             return res.status(404).json({ message: 'Blog not found' });
+//         }
+
+//         const comments = await Comment.find({ parentBlog: blog._id });
+
+//         const populateReplies = async (comment) => {
+//             if (comment.replies && comment.replies.length > 0) {
+//                 const populatedReplies = await Promise.all(
+//                     comment.replies.map(async (replyId) => {
+//                         const replyComment = await Comment.findById(replyId);
+//                         if (replyComment) {
+//                             replyComment.replies = await populateReplies(
+//                                 replyComment,
+//                             );
+//                         }
+//                         return replyComment;
+//                     }),
+//                 );
+//                 comment.replies = populatedReplies;
+//             }
+//             return comment;
+//         };
+
+//         const populatedComments = await Promise.all(
+//             comments.map(async (comment) => {
+//                 const populatedComment = await populateReplies(comment);
+//                 return populatedComment;
+//             }),
+//         );
+
+//         const mergedComments = mergeComments(populatedComments);
+
+//         return res.json(mergedComments);
+//     } catch (error) {
+//         console.error('Error fetching comments:', error);
+//         return res.status(500).json({ message: 'Error fetching comments' });
+//     }
+// };
